@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { FunctionResponseScheduling } from '@google/genai';
 import { DEFAULT_LIVE_API_MODEL, DEFAULT_VOICE } from './constants';
 import { AVAILABLE_TOOLS } from './tools';
@@ -105,7 +106,9 @@ const generatePrompt = (template: Template, voice: string, voiceFocus: boolean, 
     .replace('{VOICE_FOCUS_INSTRUCTION}', voiceFocus ? voiceFocusActiveSnippet : '');
 };
 
-export const useSettings = create<{
+const generateRandomId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+
+interface SettingsState {
   appMode: AppMode;
   systemPrompt: string;
   model: string;
@@ -121,35 +124,60 @@ export const useSettings = create<{
   setSupabaseEnabled: (enabled: boolean) => void;
   setMeetingId: (id: string) => void;
   refreshSystemPrompt: () => void;
-}>(set => ({
-  appMode: 'translate',
-  systemPrompt: generatePrompt('west_flemish', DEFAULT_VOICE, false, 'translate'),
-  model: DEFAULT_LIVE_API_MODEL,
-  voice: DEFAULT_VOICE,
-  voiceFocus: false,
-  supabaseEnabled: false,
-  meetingId: '',
-  setAppMode: mode => set(state => {
-    const template = useTools.getState().template;
-    return { appMode: mode, systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, mode) };
-  }),
-  setSystemPrompt: prompt => set({ systemPrompt: prompt }),
-  setModel: model => set({ model }),
-  setVoice: voice => set(state => {
-    const template = useTools.getState().template;
-    return { voice, systemPrompt: generatePrompt(template, voice, state.voiceFocus, state.appMode) };
-  }),
-  setVoiceFocus: focus => set(state => {
-    const template = useTools.getState().template;
-    return { voiceFocus: focus, systemPrompt: generatePrompt(template, state.voice, focus, state.appMode) };
-  }),
-  setSupabaseEnabled: enabled => set({ supabaseEnabled: enabled }),
-  setMeetingId: meetingId => set({ meetingId }),
-  refreshSystemPrompt: () => set(state => {
-    const template = useTools.getState().template;
-    return { systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, state.appMode) };
-  })
-}));
+}
+
+export const useSettings = create<SettingsState>()(
+  persist(
+    (set, get) => ({
+      appMode: 'translate',
+      systemPrompt: generatePrompt('west_flemish', DEFAULT_VOICE, false, 'translate'),
+      model: DEFAULT_LIVE_API_MODEL,
+      voice: DEFAULT_VOICE,
+      voiceFocus: false,
+      supabaseEnabled: false,
+      meetingId: '',
+      setAppMode: mode => set(state => {
+        const template = useTools.getState().template;
+        let meetingId = state.meetingId;
+        // Auto-generate ID if entering transcribe mode and none exists
+        if (mode === 'transcribe' && !meetingId) {
+          meetingId = generateRandomId();
+        }
+        return { 
+          appMode: mode, 
+          meetingId,
+          systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, mode) 
+        };
+      }),
+      setSystemPrompt: prompt => set({ systemPrompt: prompt }),
+      setModel: model => set({ model }),
+      setVoice: voice => set(state => {
+        const template = useTools.getState().template;
+        return { voice, systemPrompt: generatePrompt(template, voice, state.voiceFocus, state.appMode) };
+      }),
+      setVoiceFocus: focus => set(state => {
+        const template = useTools.getState().template;
+        return { voiceFocus: focus, systemPrompt: generatePrompt(template, state.voice, focus, state.appMode) };
+      }),
+      setSupabaseEnabled: enabled => set({ supabaseEnabled: enabled }),
+      setMeetingId: meetingId => set({ meetingId }),
+      refreshSystemPrompt: () => set(state => {
+        const template = useTools.getState().template;
+        return { systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, state.appMode) };
+      })
+    }),
+    {
+      name: 'tcaller-settings-v1',
+      partialize: (state) => ({ 
+        appMode: state.appMode, 
+        meetingId: state.meetingId,
+        voice: state.voice,
+        voiceFocus: state.voiceFocus,
+        supabaseEnabled: state.supabaseEnabled
+      }),
+    }
+  )
+);
 
 export const useUI = create<{
   isSidebarOpen: boolean;

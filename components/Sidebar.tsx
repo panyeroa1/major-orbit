@@ -163,6 +163,10 @@ export default function Sidebar() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleClearId = () => {
+    setMeetingId('');
+  };
+
   return (
     <aside className={c('sidebar', { open: isSidebarOpen })}>
       <div className="sidebar-header">
@@ -201,9 +205,12 @@ export default function Sidebar() {
                     <button className="id-btn" onClick={handleCopyMeetingId} disabled={!meetingId} title="Copy ID">
                       <span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>
                     </button>
+                    <button className="id-btn danger" onClick={handleClearId} disabled={!meetingId} title="End Session">
+                      <span className="material-symbols-outlined">power_settings_new</span>
+                    </button>
                   </div>
                 </div>
-                <p className="setting-hint">Only participants with this exact ID will receive your transcription stream.</p>
+                <p className="setting-hint">This ID is persistent. End session to clear it.</p>
               </div>
             ) : (
               <div className="setting-row vertical">
@@ -211,13 +218,20 @@ export default function Sidebar() {
                   <label className="setting-label">Join Session ID</label>
                   <p className="setting-desc">Enter ID from Transcribe tab</p>
                 </div>
-                <input 
-                  type="text" 
-                  className="setting-textarea single-line" 
-                  placeholder="ENTER ID (e.g. A1B2C3)"
-                  value={meetingId}
-                  onChange={(e) => setMeetingId(e.target.value.toUpperCase())}
-                />
+                <div className="meeting-id-controls">
+                  <input 
+                    type="text" 
+                    className="meeting-id-input" 
+                    placeholder="ENTER ID"
+                    value={meetingId}
+                    onChange={(e) => setMeetingId(e.target.value.toUpperCase())}
+                  />
+                  {meetingId && (
+                    <button className="id-btn danger" onClick={handleClearId} title="Leave Session">
+                      <span className="material-symbols-outlined">logout</span>
+                    </button>
+                  )}
+                </div>
                 <p className="setting-hint">Leave blank to keep this translator tab isolated.</p>
               </div>
             )}
