@@ -12,7 +12,7 @@ import { wsService } from '../../../lib/websocket-service';
 
 const MiniVisualizer = memo(({ volume, active, color = 'accent' }: { volume: number; active: boolean; color?: 'accent' | 'success' }) => {
   const bars = 4;
-  if (!active || volume < 0.001) return null;
+  if (!active || volume < 0.005) return null;
 
   return (
     <div className={cn("mini-viz", color)}>
@@ -21,8 +21,8 @@ const MiniVisualizer = memo(({ volume, active, color = 'accent' }: { volume: num
           key={i} 
           className="mini-bar" 
           style={{ 
-            height: `${Math.max(2, volume * 40 * (0.5 + Math.random() * 0.5))}px`,
-            transition: 'height 0.05s ease-out'
+            height: `${Math.max(2, volume * 50 * (0.6 + Math.random() * 0.4))}px`,
+            transition: 'height 0.04s ease-out'
           }} 
         />
       ))}
@@ -41,12 +41,12 @@ function ControlTray() {
   const { voiceFocus, setVoiceFocus, appMode } = useSettings();
   const { template } = useTools();
 
-  // Auto mute mic when user is at the Translate tab
+  // Mode-based Mute logic
   useEffect(() => {
     if (appMode === 'translate') {
-      setMuted(true);
+      setMuted(true); // Default to muted in Translate mode to avoid mic echoing back AI
     } else {
-      setMuted(false);
+      setMuted(false); // Default to listening in Transcribe mode
     }
   }, [appMode]);
 
@@ -56,22 +56,13 @@ function ControlTray() {
     }
   }, [connected, appMode]);
 
-  // Handle Ducking
-  useEffect(() => {
-    if (audioRecorder && connected && !muted) {
-      audioRecorder.setVolumeMultiplier(isAiSpeaking ? 0.15 : 1.0);
-    }
-  }, [isAiSpeaking, audioRecorder, connected, muted]);
-
-  // Audio Data and Volume Bridging
+  // Audio Data & Volume Bridging
   useEffect(() => {
     const onData = (base64: string) => {
-      client.sendRealtimeInput([
-        {
-          mimeType: 'audio/pcm;rate=16000',
-          data: base64,
-        },
-      ]);
+      client.sendRealtimeInput([{
+        mimeType: 'audio/pcm;rate=16000',
+        data: base64,
+      }]);
     };
 
     const onVolume = (v: number) => {
@@ -107,9 +98,7 @@ function ControlTray() {
   const handleSendMessage = () => {
     const text = chatValue.trim();
     if (!text) return;
-
     const sendPayload = { type: 'chat', text, mode: template, timestamp: Date.now() };
-
     if (connected) {
       client.send([{ text }], true);
       wsService.sendPrompt(sendPayload);
@@ -122,10 +111,6 @@ function ControlTray() {
       }).catch(console.error);
     }
   };
-
-  const inputPlaceholder = connected 
-    ? (appMode === 'transcribe' ? 'Type a note...' : 'Type to translate...') 
-    : 'Connect to start...';
 
   const getToggleIcon = () => {
     if (appMode === 'translate') {
@@ -142,59 +127,41 @@ function ControlTray() {
             <input
               type="text"
               className="chat-composer-input"
-              placeholder={inputPlaceholder}
+              placeholder={connected ? "Type to translate..." : "Connect to start..."}
               value={chatValue}
               onChange={(e) => setChatValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             />
-            <button 
-              className="send-message-btn" 
-              onClick={handleSendMessage}
-              disabled={!chatValue.trim()}
-            >
+            <button className="send-message-btn" onClick={handleSendMessage} disabled={!chatValue.trim()}>
               <span className="material-symbols-outlined">send</span>
             </button>
           </div>
         )}
 
         <div className={cn('floating-pill', { 'focus-active': connected })}>
-          <button
-            className={cn('icon-button', { active: isSidebarOpen })}
-            onClick={toggleSidebar}
-            aria-label="Settings"
-          >
+          <button className={cn('icon-button', { active: isSidebarOpen })} onClick={toggleSidebar}>
             <span className="material-symbols-outlined">settings</span>
           </button>
 
-          <button
-            className={cn('icon-button', { active: voiceFocus })}
-            onClick={() => setVoiceFocus(!voiceFocus)}
-            aria-label={voiceFocus ? "Disable Voice Focus" : "Enable Voice Focus"}
-            title="Neural Sensitivity (Voice Focus)"
-          >
+          <button className={cn('icon-button', { active: voiceFocus })} onClick={() => setVoiceFocus(!voiceFocus)}>
             <span className="material-symbols-outlined">
               {voiceFocus ? 'center_focus_strong' : 'center_focus_weak'}
             </span>
           </button>
 
-          <button
-            className={cn('icon-button relative-btn', { active: !muted && connected, muted: muted && connected })}
-            onClick={handleMicClick}
-            aria-label={muted ? 'Unmute' : 'Mute'}
-          >
-            <MiniVisualizer volume={appMode === 'transcribe' ? inputVolume : 0} active={!muted && connected && appMode === 'transcribe'} color="success" />
-            <MiniVisualizer volume={appMode === 'translate' ? outputVolume : 0} active={isAiSpeaking && appMode === 'translate'} color="accent" />
+          <button className={cn('icon-button relative-btn', { active: !muted && connected, muted: muted && connected })} onClick={handleMicClick}>
+            {/* INPUT VIZ: Only for Transcribe Mode + Mic Active */}
+            <MiniVisualizer volume={inputVolume} active={connected && !muted && appMode === 'transcribe'} color="success" />
+            
+            {/* OUTPUT VIZ: Only for Translate Mode + AI Speaking */}
+            <MiniVisualizer volume={outputVolume} active={connected && isAiSpeaking && appMode === 'translate'} color="accent" />
+            
             <span className={cn('material-symbols-outlined', { 'filled': !muted && connected })}>
               {getToggleIcon()}
             </span>
           </button>
 
-          <button
-            ref={connectButtonRef}
-            className={cn('icon-button main-action', { connected })}
-            onClick={connected ? disconnect : connect}
-            aria-label={connected ? 'Stop' : 'Start'}
-          >
+          <button className={cn('icon-button main-action', { connected })} onClick={connected ? disconnect : connect}>
             <span className="material-symbols-outlined filled">
               {connected ? 'stop' : 'play_arrow'}
             </span>

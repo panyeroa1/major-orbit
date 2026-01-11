@@ -1,25 +1,28 @@
 # DEV SESSION LOG
 
-## Session ID: 20250523-163000
-**Start Timestamp**: 2025-05-23 16:30:00
+## Session ID: 20250523-171500
+**Start Timestamp**: 2025-05-23 17:15:00
 
 ### Objective(s)
-1. Add audio visualizers to the Mic and Speaker icons in the bottom navbar (ControlTray).
-2. Ensure the "Neural Transcription" stage continues to render segmented live text.
-3. Synchronize visualizer energy with `inputVolume` and `outputVolume`.
+1. Decouple `appMode` from persistence so different browser tabs can act as different roles (Host/Transcriber vs Subscriber/Translator).
+2. Refine bottom navbar visualizers: Mic icon (Transcribe) and Speaker icon (Translate).
+3. Ensure "Neural Transcription" stage is the primary render target for live text in transcription mode.
+4. Implement Meeting ID persistence and "Copy to Clipboard" management in the sidebar.
 
 ### Scope Boundaries
-- `ControlTray.tsx` for button-level visualizers.
-- `index.css` for visualizer styling.
+- `lib/state.ts`: Remove `appMode` from `persist` partialize.
+- `ControlTray.tsx`: Positioning and logic for icon-based visualizers.
+- `Sidebar.tsx`: UI polish for Meeting ID management.
 
 ### Files Inspected
+- `lib/state.ts`
 - `components/console/control-tray/ControlTray.tsx`
-- `components/demo/streaming-console/StreamingConsole.tsx`
-- `hooks/media/use-live-api.ts`
+- `components/Sidebar.tsx`
+- `index.css`
 
 ### Assumptions / Risks
-- Risk: Too many bars in a small button might look cluttered. Solution: Use 4-6 high-fidelity pulsing bars.
-- Assumption: `inputVolume` is correctly bridged from `AudioRecorder`.
+- Assumption: Users will open one tab for Transcribing (Host) and another for Translating (Subscriber).
+- Risk: Local cross-tab communication relies on `BroadcastChannel`, which is filtered by `meetingId`.
 
 ---
 **Status**: IN_PROGRESS

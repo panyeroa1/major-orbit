@@ -180,7 +180,6 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-scroll">
-        {/* Meeting ID Decoupling Section */}
         <div className="sidebar-section">
           <header className="section-header">
             <span className="material-symbols-outlined">hub</span>
@@ -210,19 +209,19 @@ export default function Sidebar() {
                     </button>
                   </div>
                 </div>
-                <p className="setting-hint">This ID is persistent. End session to clear it.</p>
+                <p className="setting-hint">Persistent until session is ended.</p>
               </div>
             ) : (
               <div className="setting-row vertical">
                 <div className="setting-info">
                   <label className="setting-label">Join Session ID</label>
-                  <p className="setting-desc">Enter ID from Transcribe tab</p>
+                  <p className="setting-desc">Enter Host ID to receive broadcast</p>
                 </div>
                 <div className="meeting-id-controls">
                   <input 
                     type="text" 
                     className="meeting-id-input" 
-                    placeholder="ENTER ID"
+                    placeholder="ENTER HOST ID"
                     value={meetingId}
                     onChange={(e) => setMeetingId(e.target.value.toUpperCase())}
                   />
@@ -232,13 +231,12 @@ export default function Sidebar() {
                     </button>
                   )}
                 </div>
-                <p className="setting-hint">Leave blank to keep this translator tab isolated.</p>
+                <p className="setting-hint">Empty = Isolated Session.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Linguistic Engine Section */}
         <div className="sidebar-section">
           <header className="section-header">
             <span className="material-symbols-outlined">translate</span>
@@ -250,7 +248,7 @@ export default function Sidebar() {
               <div className="setting-row">
                 <div className="setting-info">
                   <label className="setting-label">Target Language</label>
-                  <p className="setting-desc">Primary interpretation goal</p>
+                  <p className="setting-desc">Interpretation Goal</p>
                 </div>
                 <select 
                   value={template} 
@@ -270,7 +268,7 @@ export default function Sidebar() {
             <div className="setting-row">
               <div className="setting-info">
                 <label className="setting-label">Voice Focus</label>
-                <p className="setting-desc">Isolate speaker from noise</p>
+                <p className="setting-desc">Speaker Isolation</p>
               </div>
               <label className="switch">
                 <input
@@ -284,8 +282,8 @@ export default function Sidebar() {
 
             <div className="setting-row">
               <div className="setting-info">
-                <label className="setting-label">Supabase Logging</label>
-                <p className="setting-desc">Securely sync conversation history</p>
+                <label className="setting-label">Supabase Sync</label>
+                <p className="setting-desc">History Logging</p>
               </div>
               <label className="switch">
                 <input
@@ -299,7 +297,6 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Voice Persona Section */}
         <div className="sidebar-section">
           <header className="section-header">
             <span className="material-symbols-outlined">record_voice_over</span>
@@ -309,8 +306,7 @@ export default function Sidebar() {
           <div className="settings-card">
             <div className="setting-row vertical">
               <div className="setting-info">
-                <label className="setting-label">Selected Persona</label>
-                <p className="setting-desc">The high-fidelity voice identity</p>
+                <label className="setting-label">Active Persona</label>
               </div>
               <select 
                 value={voice} 
@@ -327,61 +323,6 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-
-        {/* Neural Directives Section */}
-        <div className="sidebar-section">
-          <header className="section-header">
-            <span className="material-symbols-outlined">auto_fix_high</span>
-            <h4>Neural Directives</h4>
-          </header>
-          
-          <div className="settings-card">
-            <div className="setting-row vertical">
-              <div className="setting-info">
-                <label className="setting-label">System Instructions</label>
-                <p className="setting-desc">Modify baseline AI behavior</p>
-              </div>
-              <textarea
-                value={systemPrompt}
-                onChange={e => setSystemPrompt(e.target.value)}
-                rows={4}
-                className="setting-textarea"
-                placeholder="E.g. Be more poetic, use formal honorifics..."
-              />
-              <p className="setting-hint">
-                Neural directives shape the personality and strictness of the engine.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Capabilities Section */}
-        <div className="sidebar-section">
-          <header className="section-header">
-            <span className="material-symbols-outlined">power</span>
-            <h4>External Capabilities</h4>
-          </header>
-          
-          <div className="settings-card">
-            {tools.map(tool => (
-              <div key={tool.name} className="setting-row">
-                <div className="setting-info">
-                  <label className="setting-label">{tool.name.replace(/_/g, ' ')}</label>
-                  <p className="setting-desc">Enable tool integration</p>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={tool.isEnabled}
-                    onChange={() => toggleTool(tool.name)}
-                    disabled={connected}
-                  />
-                  <span className="slider round"></span>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
       
       <div className="sidebar-footer">
@@ -393,9 +334,9 @@ export default function Sidebar() {
             </span>
           </div>
           <div className="status-meeting">
-            {meetingId ? `SESSION: ${meetingId}` : 'ISOLATED'}
+            {meetingId ? `BINDED: ${meetingId}` : 'ISOLATED'}
           </div>
-          <span className="version-text">v3.5.3</span>
+          <span className="version-text">v3.5.3 [EBURON.AI]</span>
         </div>
       </div>
     </aside>

@@ -167,9 +167,9 @@ export const useSettings = create<SettingsState>()(
       })
     }),
     {
-      name: 'tcaller-settings-v1',
+      name: 'tcaller-settings-v1.1',
+      // CRITICAL: We DO NOT persist appMode so separate tabs can be in different modes
       partialize: (state) => ({ 
-        appMode: state.appMode, 
         meetingId: state.meetingId,
         voice: state.voice,
         voiceFocus: state.voiceFocus,
