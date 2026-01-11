@@ -1,0 +1,230 @@
+
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GenAILiveClient } from '../../lib/genai-live-client';
+import { LiveConnectConfig, Modality, LiveServerToolCall } from '@google/genai';
+import { AudioStreamer } from '../../lib/audio-streamer';
+import { audioContext } from '../../lib/utils';
+import VolMeterWorket from '../../lib/worklets/vol-meter';
+import { useLogStore, useSettings } from '../../lib/state';
+import { wsService } from '../../lib/websocket-service';
+
+export type UseLiveApiResults = {
+  client: GenAILiveClient;
+  setConfig: (config: LiveConnectConfig) => void;
+  config: LiveConnectConfig;
+
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  connected: boolean;
+  isAiSpeaking: boolean;
+  volume: number;
+};
+
+export function useLiveApi({
+  apiKey,
+}: {
+  apiKey: string;
+}): UseLiveApiResults {
+  const { model, appMode } = useSettings();
+  
+  // Initialize client and handle cleanup
+  const client = useMemo(() => {
+    const newClient = new GenAILiveClient(apiKey, model);
+    return newClient;
+  }, [apiKey, model]);
+
+  const audioStreamerRef = useRef<AudioStreamer | null>(null);
+  const isConnectingRef = useRef(false);
+  const connectionPromiseRef = useRef<Promise<void> | null>(null);
+
+  const [volume, setVolume] = useState(0);
+  const [connected, setConnected] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [config, setConfig] = useState<LiveConnectConfig>({
+    inputAudioTranscription: {}, // Always enable transcription for seamless Rec/Trans flow
+  });
+
+  // Monitor config changes to potentially restart session
+  const prevConfigRef = useRef<string>("");
+  useEffect(() => {
+    const configWithTranscription = {
+      ...config,
+      inputAudioTranscription: {},
+    };
+    const configStr = JSON.stringify(configWithTranscription);
+    if (connected && prevConfigRef.current && prevConfigRef.current !== configStr) {
+      console.log("Configuration changed while connected. Restarting session to apply...");
+      client.disconnect();
+      setTimeout(() => {
+        client.connect(configWithTranscription).catch(err => console.error("Reconnect failed after config change:", err));
+      }, 500);
+    }
+    prevConfigRef.current = configStr;
+  }, [config, connected, client]);
+
+  useEffect(() => {
+    return () => {
+      client.disconnect();
+    };
+  }, [client]);
+
+  // register audio for streaming server -> speakers
+  useEffect(() => {
+    if (!audioStreamerRef.current) {
+      audioContext({ id: 'audio-out' }).then((audioCtx: AudioContext) => {
+        const streamer = new AudioStreamer(audioCtx);
+        audioStreamerRef.current = streamer;
+        
+        streamer.onPlay = () => setIsAiSpeaking(true);
+        streamer.onStop = () => setIsAiSpeaking(false);
+
+        streamer
+          .addWorklet<any>('vumeter-out', VolMeterWorket, (ev: any) => {
+            setVolume(ev.data.volume);
+          })
+          .catch(err => {
+            console.error('Error adding worklet:', err);
+          });
+      });
+    }
+  }, [audioStreamerRef]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      setConnected(true);
+      isConnectingRef.current = false;
+    };
+
+    const onClose = () => {
+      setConnected(false);
+      isConnectingRef.current = false;
+    };
+
+    const stopAudioStreamer = () => {};
+
+    const onAudio = (data: ArrayBuffer) => {
+      // PLAY AUDIO: Enabled for both Translate and Transcribe modes to support "read aloud" sync.
+      if (audioStreamerRef.current) {
+        audioStreamerRef.current.addPCM16(new Uint8Array(data));
+      }
+    };
+
+    const onError = () => {
+      setConnected(false);
+      isConnectingRef.current = false;
+    };
+
+    client.on('open', onOpen);
+    client.on('close', onClose);
+    client.on('error', onError);
+    client.on('interrupted', stopAudioStreamer);
+    client.on('audio', onAudio);
+
+    const onToolCall = (toolCall: LiveServerToolCall) => {
+      const functionResponses: any[] = [];
+
+      for (const fc of toolCall.functionCalls) {
+        if (fc.name === 'broadcast_to_websocket') {
+          const text = (fc.args as any).text;
+          const success = wsService.sendPrompt(text);
+          functionResponses.push({
+            id: fc.id,
+            name: fc.name,
+            response: { result: 'ok' },
+          });
+          continue;
+        }
+
+        functionResponses.push({
+          id: fc.id,
+          name: fc.name,
+          response: { result: 'ok' },
+        });
+      }
+
+      client.sendToolResponse({ functionResponses: functionResponses });
+    };
+
+    client.on('toolcall', onToolCall);
+
+    return () => {
+      client.off('open', onOpen);
+      client.off('close', onClose);
+      client.off('error', onError);
+      client.off('interrupted', stopAudioStreamer);
+      client.off('audio', onAudio);
+      client.off('toolcall', onToolCall);
+    };
+  }, [client]);
+
+  const connect = useCallback(async () => {
+    if (connected) return;
+    
+    if (isConnectingRef.current && connectionPromiseRef.current) {
+      return connectionPromiseRef.current;
+    }
+
+    if (!config || Object.keys(config).length === 0) {
+      return;
+    }
+
+    isConnectingRef.current = true;
+    
+    const connectTask = async () => {
+        try {
+          const success = await client.connect({
+            ...config,
+            inputAudioTranscription: {},
+          });
+          if (!success) {
+            throw new Error('WebSocket connection could not be established.');
+          }
+        } catch (e: any) {
+          throw e;
+        } finally {
+          isConnectingRef.current = false;
+          connectionPromiseRef.current = null;
+        }
+    };
+
+    connectionPromiseRef.current = connectTask();
+    return connectionPromiseRef.current;
+  }, [client, config, connected]);
+
+  const disconnect = useCallback(async () => {
+    client.disconnect();
+    setConnected(false);
+    isConnectingRef.current = false;
+  }, [setConnected, client]);
+
+  return {
+    client,
+    config,
+    setConfig,
+    connect,
+    connected,
+    disconnect,
+    isAiSpeaking,
+    volume,
+  };
+}

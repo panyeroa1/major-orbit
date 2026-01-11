@@ -1,0 +1,7 @@
+{
+  "name": "Tcaller",
+  "description": "Interactive Tunning",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
