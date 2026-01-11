@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import EventEmitter from 'eventemitter3';
+import { useSettings } from './state';
 
 export interface WebSocketEvents {
-  message: (data: { type: string; text: string; mode?: string; timestamp?: number }) => void;
+  message: (data: { type: string; text: string; mode?: string; timestamp?: number; meetingId?: string }) => void;
   status: (status: 'connected' | 'disconnected' | 'connecting') => void;
 }
 
@@ -24,7 +25,13 @@ export class WebSocketService {
   constructor(private url: string = 'ws://localhost:8080/prompts') {
     this.channel = new BroadcastChannel('super-translator-sync');
     this.channel.onmessage = (event) => {
-      this.emitter.emit('message', event.data);
+      const data = event.data;
+      const localMeetingId = useSettings.getState().meetingId;
+      
+      // BINDING LOGIC: Only emit if both IDs match or both are empty
+      if (!localMeetingId || !data.meetingId || data.meetingId === localMeetingId) {
+        this.emitter.emit('message', data);
+      }
     };
   }
 
@@ -67,7 +74,11 @@ export class WebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          this.emitter.emit('message', data);
+          const localMeetingId = useSettings.getState().meetingId;
+          
+          if (!localMeetingId || !data.meetingId || data.meetingId === localMeetingId) {
+            this.emitter.emit('message', data);
+          }
         } catch {
           this.emitter.emit('message', { type: 'chat', text: event.data });
         }
@@ -91,7 +102,10 @@ export class WebSocketService {
   }
 
   public sendPrompt(data: any) {
-    const payload = typeof data === 'string' ? { type: 'chat', text: data, timestamp: Date.now() } : data;
+    const localMeetingId = useSettings.getState().meetingId;
+    const payload = typeof data === 'string' 
+      ? { type: 'chat', text: data, timestamp: Date.now(), meetingId: localMeetingId } 
+      : { ...data, meetingId: data.meetingId || localMeetingId };
     
     // Always use BroadcastChannel for local cross-tab sync
     try {

@@ -325,6 +325,30 @@ header.header-glass {
   opacity: 0.8;
 }
 
+/* Mini Button Visualizers */
+.relative-btn {
+  position: relative;
+}
+
+.mini-viz {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.mini-bar {
+  width: 3px;
+  border-radius: 100px;
+}
+
+.mini-viz.accent .mini-bar { background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
+.mini-viz.success .mini-bar { background: var(--success); box-shadow: 0 0 5px rgba(16, 185, 129, 0.4); }
+
 .active-pulse-container.ai-active {
   background: var(--accent-dim);
   border-color: var(--accent);
@@ -678,6 +702,15 @@ header.header-glass {
   transition: border-color 0.2s;
 }
 
+.setting-textarea.single-line {
+  height: 44px;
+  line-height: 20px;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-family: 'Space Mono', monospace;
+}
+
 .setting-textarea:focus {
   border-color: var(--accent);
 }
@@ -689,6 +722,56 @@ header.header-glass {
   opacity: 0.7;
 }
 
+/* Meeting ID specific */
+.meeting-id-controls {
+  display: flex;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.meeting-id-display {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Mono', monospace;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: white;
+  padding: 12px;
+}
+
+.meeting-id-actions {
+  display: flex;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.id-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.id-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.id-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* Sidebar Footer */
 .sidebar-footer {
   padding: 20px 24px;
@@ -698,14 +781,25 @@ header.header-glass {
 
 .footer-status {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .status-label-group {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-meeting {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 4px 10px;
+  border-radius: 4px;
+  width: fit-content;
+  letter-spacing: 0.05em;
 }
 
 .status-light {

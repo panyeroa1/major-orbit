@@ -10,13 +10,33 @@ import { useUI, useSettings, useTools } from '../../../lib/state';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { wsService } from '../../../lib/websocket-service';
 
+const MiniVisualizer = memo(({ volume, active, color = 'accent' }: { volume: number; active: boolean; color?: 'accent' | 'success' }) => {
+  const bars = 4;
+  if (!active || volume < 0.001) return null;
+
+  return (
+    <div className={cn("mini-viz", color)}>
+      {Array.from({ length: bars }).map((_, i) => (
+        <div 
+          key={i} 
+          className="mini-bar" 
+          style={{ 
+            height: `${Math.max(2, volume * 40 * (0.5 + Math.random() * 0.5))}px`,
+            transition: 'height 0.05s ease-out'
+          }} 
+        />
+      ))}
+    </div>
+  );
+});
+
 function ControlTray() {
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const [chatValue, setChatValue] = useState('');
   const connectButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { client, connected, connect, disconnect, isAiSpeaking, setInputVolume } = useLiveAPIContext();
+  const { client, connected, connect, disconnect, isAiSpeaking, setInputVolume, inputVolume, outputVolume } = useLiveAPIContext();
   const { toggleSidebar, isSidebarOpen } = useUI();
   const { voiceFocus, setVoiceFocus, appMode } = useSettings();
   const { template } = useTools();
@@ -158,10 +178,12 @@ function ControlTray() {
           </button>
 
           <button
-            className={cn('icon-button', { active: !muted && connected, muted: muted && connected })}
+            className={cn('icon-button relative-btn', { active: !muted && connected, muted: muted && connected })}
             onClick={handleMicClick}
             aria-label={muted ? 'Unmute' : 'Mute'}
           >
+            <MiniVisualizer volume={appMode === 'transcribe' ? inputVolume : 0} active={!muted && connected && appMode === 'transcribe'} color="success" />
+            <MiniVisualizer volume={appMode === 'translate' ? outputVolume : 0} active={isAiSpeaking && appMode === 'translate'} color="accent" />
             <span className={cn('material-symbols-outlined', { 'filled': !muted && connected })}>
               {getToggleIcon()}
             </span>

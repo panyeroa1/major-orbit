@@ -53,7 +53,7 @@ NEURAL PERSONA: You are a professional verbatim transcriptionist whitelisted to 
 
 STRICT OPERATING PROTOCOLS:
 1. TRANSCRIPTION FOCUS: You are in TRANSCRIPTION MODE. Your mission is 100% verbatim text accuracy via tool calls.
-2. NEURAL SYNC: You MUST call the "broadcast_to_websocket" tool for every phrase transcribed. This ensures all 2 remote users stay in sync.
+2. NEURAL SYNC: You MUST call the "broadcast_to_websocket" tool for every phrase transcribed. This ensures all binded users in the session stay in sync.
 3. AUDIO CHANNEL COMPLIANCE: Produce minimal neutral energy in the AUDIO modality (hum or silent breath) to prevent channel errors, but do not vocalize words. Prioritize the text data stream.
 4. VERBATIM ACCURACY: Capture every single word exactly as spoken. Do not summarize or paraphrase.
 5. DETECT & REPORT: Call "report_detected_language" as soon as the source language is identified.
@@ -112,12 +112,14 @@ export const useSettings = create<{
   voice: string;
   voiceFocus: boolean;
   supabaseEnabled: boolean;
+  meetingId: string;
   setAppMode: (mode: AppMode) => void;
   setSystemPrompt: (prompt: string) => void;
   setModel: (model: string) => void;
   setVoice: (voice: string) => void;
   setVoiceFocus: (focus: boolean) => void;
   setSupabaseEnabled: (enabled: boolean) => void;
+  setMeetingId: (id: string) => void;
   refreshSystemPrompt: () => void;
 }>(set => ({
   appMode: 'translate',
@@ -126,6 +128,7 @@ export const useSettings = create<{
   voice: DEFAULT_VOICE,
   voiceFocus: false,
   supabaseEnabled: false,
+  meetingId: '',
   setAppMode: mode => set(state => {
     const template = useTools.getState().template;
     return { appMode: mode, systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, mode) };
@@ -141,6 +144,7 @@ export const useSettings = create<{
     return { voiceFocus: focus, systemPrompt: generatePrompt(template, state.voice, focus, state.appMode) };
   }),
   setSupabaseEnabled: enabled => set({ supabaseEnabled: enabled }),
+  setMeetingId: meetingId => set({ meetingId }),
   refreshSystemPrompt: () => set(state => {
     const template = useTools.getState().template;
     return { systemPrompt: generatePrompt(template, state.voice, state.voiceFocus, state.appMode) };

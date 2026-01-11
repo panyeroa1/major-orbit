@@ -1,27 +1,25 @@
 # DEV SESSION LOG
 
-## Session ID: 20250523-143000
-**Start Timestamp**: 2025-05-23 14:30:00
+## Session ID: 20250523-163000
+**Start Timestamp**: 2025-05-23 16:30:00
 
 ### Objective(s)
-1. Implement real-time audio visualizers for Mic (Transcription) and Speaker (Translation).
-2. Bridge volume data from `AudioRecorder` (mic) and `AudioStreamer` (speaker) to the UI.
-3. Maintain high performance for segmented live rendering.
+1. Add audio visualizers to the Mic and Speaker icons in the bottom navbar (ControlTray).
+2. Ensure the "Neural Transcription" stage continues to render segmented live text.
+3. Synchronize visualizer energy with `inputVolume` and `outputVolume`.
 
 ### Scope Boundaries
-- `useLiveApi.ts` for volume state management.
-- `ControlTray.tsx` for mic volume bridging.
-- `StreamingConsole.tsx` for visualizer UI.
+- `ControlTray.tsx` for button-level visualizers.
+- `index.css` for visualizer styling.
 
 ### Files Inspected
-- `hooks/media/use-live-api.ts`
 - `components/console/control-tray/ControlTray.tsx`
 - `components/demo/streaming-console/StreamingConsole.tsx`
-- `index.css`
+- `hooks/media/use-live-api.ts`
 
 ### Assumptions / Risks
-- Assumption: The `volume` event from `AudioRecorder` provides enough resolution for a smooth visualizer.
-- Risk: High-frequency state updates for volume might impact React render performance if not handled carefully (memoization).
+- Risk: Too many bars in a small button might look cluttered. Solution: Use 4-6 high-fidelity pulsing bars.
+- Assumption: `inputVolume` is correctly bridged from `AudioRecorder`.
 
 ---
 **Status**: IN_PROGRESS

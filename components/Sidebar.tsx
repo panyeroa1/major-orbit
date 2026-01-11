@@ -7,7 +7,7 @@ import { useSettings, useUI, useTools, Template } from '../lib/state';
 import c from 'classnames';
 import { AVAILABLE_VOICES } from '../lib/constants';
 import { useLiveAPIContext } from '../contexts/LiveAPIContext';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const LANGUAGE_LABELS: Record<Template, string> = {
   'dutch': 'Dutch (Netherlands)',
@@ -133,9 +133,11 @@ const getVoiceAlias = (voiceId: string) => VOICE_ALIASES[voiceId] || `Persona ${
 
 export default function Sidebar() {
   const { isSidebarOpen, toggleSidebar } = useUI();
-  const { systemPrompt, voice, voiceFocus, supabaseEnabled, setSystemPrompt, setVoice, setVoiceFocus, setSupabaseEnabled, appMode } = useSettings();
+  const { systemPrompt, voice, voiceFocus, supabaseEnabled, meetingId, setSystemPrompt, setVoice, setVoiceFocus, setSupabaseEnabled, setMeetingId, appMode } = useSettings();
   const { tools, template, setTemplate, toggleTool } = useTools();
   const { connected } = useLiveAPIContext();
+  
+  const [copied, setCopied] = useState(false);
 
   const sortedVoices = useMemo(() => {
     return AVAILABLE_VOICES.map(v => ({
@@ -148,6 +150,18 @@ export default function Sidebar() {
     return (Object.keys(LANGUAGE_LABELS) as Template[])
       .sort((a, b) => LANGUAGE_LABELS[a].localeCompare(LANGUAGE_LABELS[b]));
   }, []);
+
+  const handleGenerateMeetingId = () => {
+    const id = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setMeetingId(id);
+  };
+
+  const handleCopyMeetingId = () => {
+    if (!meetingId) return;
+    navigator.clipboard.writeText(meetingId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <aside className={c('sidebar', { open: isSidebarOpen })}>
@@ -162,6 +176,54 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-scroll">
+        {/* Meeting ID Decoupling Section */}
+        <div className="sidebar-section">
+          <header className="section-header">
+            <span className="material-symbols-outlined">hub</span>
+            <h4>Session Binding</h4>
+          </header>
+          
+          <div className="settings-card">
+            {appMode === 'transcribe' ? (
+              <div className="setting-row vertical">
+                <div className="setting-info">
+                  <label className="setting-label">Meeting Host ID</label>
+                  <p className="setting-desc">Generate ID to bind remote translators</p>
+                </div>
+                <div className="meeting-id-controls">
+                  <div className="meeting-id-display">
+                    {meetingId || 'NO ID GENERATED'}
+                  </div>
+                  <div className="meeting-id-actions">
+                    <button className="id-btn" onClick={handleGenerateMeetingId} title="Generate New ID">
+                      <span className="material-symbols-outlined">refresh</span>
+                    </button>
+                    <button className="id-btn" onClick={handleCopyMeetingId} disabled={!meetingId} title="Copy ID">
+                      <span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>
+                    </button>
+                  </div>
+                </div>
+                <p className="setting-hint">Only participants with this exact ID will receive your transcription stream.</p>
+              </div>
+            ) : (
+              <div className="setting-row vertical">
+                <div className="setting-info">
+                  <label className="setting-label">Join Session ID</label>
+                  <p className="setting-desc">Enter ID from Transcribe tab</p>
+                </div>
+                <input 
+                  type="text" 
+                  className="setting-textarea single-line" 
+                  placeholder="ENTER ID (e.g. A1B2C3)"
+                  value={meetingId}
+                  onChange={(e) => setMeetingId(e.target.value.toUpperCase())}
+                />
+                <p className="setting-hint">Leave blank to keep this translator tab isolated.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Linguistic Engine Section */}
         <div className="sidebar-section">
           <header className="section-header">
@@ -316,7 +378,10 @@ export default function Sidebar() {
               {connected ? 'CONNECTED' : 'STANDBY'}
             </span>
           </div>
-          <span className="version-text">v3.5.2</span>
+          <div className="status-meeting">
+            {meetingId ? `SESSION: ${meetingId}` : 'ISOLATED'}
+          </div>
+          <span className="version-text">v3.5.3</span>
         </div>
       </div>
     </aside>
