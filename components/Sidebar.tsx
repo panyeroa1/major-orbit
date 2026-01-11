@@ -191,7 +191,7 @@ export default function Sidebar() {
               <div className="setting-row vertical">
                 <div className="setting-info">
                   <label className="setting-label">Meeting Host ID</label>
-                  <p className="setting-desc">Generate ID to bind remote translators</p>
+                  <p className="setting-desc">Broadcasting transcriptions via WebSocket</p>
                 </div>
                 <div className="meeting-id-controls">
                   <div className="meeting-id-display">
@@ -214,8 +214,8 @@ export default function Sidebar() {
             ) : (
               <div className="setting-row vertical">
                 <div className="setting-info">
-                  <label className="setting-label">Join Session ID</label>
-                  <p className="setting-desc">Enter Host ID to receive broadcast</p>
+                  <label className="setting-label">Fetch Transcription ID</label>
+                  <p className="setting-desc">Enter Host ID to fetch correct transcription via WebSocket</p>
                 </div>
                 <div className="meeting-id-controls">
                   <input 
@@ -231,7 +231,7 @@ export default function Sidebar() {
                     </button>
                   )}
                 </div>
-                <p className="setting-hint">Empty = Isolated Session.</p>
+                <p className="setting-hint">Bound sessions stream remote text into the page live.</p>
               </div>
             )}
           </div>

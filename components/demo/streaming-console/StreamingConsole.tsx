@@ -18,12 +18,9 @@ import {
 
 const AudioVisualizer = memo(({ volume, isAi, connected }: { volume: number; isAi: boolean; connected: boolean }) => {
   const bars = 16;
-  // Use local state for bars to ensure high-performance animation if needed, 
-  // but volume prop is already optimized.
   return (
     <div className={cn("audio-visualizer", { active: connected && volume > 0.001, ai: isAi })}>
       {Array.from({ length: bars }).map((_, i) => {
-        // Create varied heights for a more natural look
         const factor = Math.sin((i / bars) * Math.PI) * 0.7 + 0.3;
         const height = connected ? Math.max(4, volume * 100 * factor) : 4;
         return (
@@ -169,6 +166,7 @@ export default function StreamingConsole() {
   const clearTimeoutsRef = useRef<{ trans?: number; input?: number }>({});
   const lastProcessedMessageRef = useRef<number>(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const historyBottomRef = useRef<HTMLDivElement>(null);
   
   const lastUserTextRef = useRef<string | null>(null);
 
@@ -187,9 +185,10 @@ export default function StreamingConsole() {
     }
   };
 
+  // Ensure latest entries are visible in the history section
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (historyBottomRef.current) {
+      historyBottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [turns]);
 
@@ -215,13 +214,22 @@ export default function StreamingConsole() {
       if (data.timestamp && data.timestamp <= lastProcessedMessageRef.current) return;
       if (data.text) {
         lastProcessedMessageRef.current = data.timestamp || Date.now();
+        
+        if (appMode === 'translate') {
+          setTranscriptionSegments([data.text]);
+          if (clearTimeoutsRef.current.input) window.clearTimeout(clearTimeoutsRef.current.input);
+          clearTimeoutsRef.current.input = window.setTimeout(() => {
+            setTranscriptionSegments([]);
+          }, 6000);
+        }
+
         handleSendMessage(data.text, true);
       }
     };
     wsService.on('message', handleRemoteMessage);
     wsService.connect();
     return () => wsService.off('message', handleRemoteMessage);
-  }, [connected, client]);
+  }, [connected, client, appMode]);
 
   useEffect(() => {
     const config: LiveConnectConfig = {
@@ -323,7 +331,7 @@ export default function StreamingConsole() {
         if (supabaseEnabled && last.text) {
           logToSupabase({
             session_id: sessionId,
-            user_text: "Neural Transcription Mode",
+            user_text: appMode === 'transcribe' ? "Neural Transcription Mode" : "Translation Mode",
             agent_text: last.text,
             language: template
           });
@@ -351,6 +359,7 @@ export default function StreamingConsole() {
       currentAudioChunks.current.push(new Uint8Array(data));
     };
 
+    client.on('open', () => {});
     client.on('content', handleContent);
     client.on('outputTranscription', handleOutputTranscription);
     client.on('inputTranscription', handleInputTranscription);
@@ -371,10 +380,12 @@ export default function StreamingConsole() {
   const lastAgentTurn = [...turns].reverse().find(t => t.role === 'agent' && t.audioData);
 
   const transcriptionText = transcriptionSegments.join(' ');
+  
   const primaryDisplayText = appMode === 'transcribe' ? transcriptionText : translation;
   const secondaryDisplayText = appMode === 'transcribe' ? translation : transcriptionText;
 
-  // Visualizer logic
+  const idleText = appMode === 'transcribe' ? "Listening for speech..." : "Neural engine ready...";
+
   const currentVolume = appMode === 'transcribe' ? inputVolume : outputVolume;
   const isAiVisualizer = appMode === 'translate';
 
@@ -419,7 +430,7 @@ export default function StreamingConsole() {
                 visible: !!primaryDisplayText || connected, 
                 "transcribe-mode": appMode === 'transcribe' 
              })}>
-                {primaryDisplayText || (connected ? (secondaryDisplayText ? "" : "Neural engine ready...") : "System standby")}
+                {primaryDisplayText || (connected ? idleText : "System standby")}
              </div>
           </div>
 
@@ -472,6 +483,7 @@ export default function StreamingConsole() {
                 </div>
               ))
             )}
+            <div ref={historyBottomRef} style={{ height: '1px', width: '100%' }} />
           </div>
         </div>
       </section>

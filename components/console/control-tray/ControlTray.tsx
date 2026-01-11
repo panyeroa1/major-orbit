@@ -12,6 +12,7 @@ import { wsService } from '../../../lib/websocket-service';
 
 const MiniVisualizer = memo(({ volume, active, color = 'accent' }: { volume: number; active: boolean; color?: 'accent' | 'success' }) => {
   const bars = 4;
+  // Threshold to avoid jitter in visualizer
   if (!active || volume < 0.005) return null;
 
   return (
@@ -21,7 +22,7 @@ const MiniVisualizer = memo(({ volume, active, color = 'accent' }: { volume: num
           key={i} 
           className="mini-bar" 
           style={{ 
-            height: `${Math.max(2, volume * 50 * (0.6 + Math.random() * 0.4))}px`,
+            height: `${Math.max(2, volume * 55 * (0.65 + Math.random() * 0.35))}px`,
             transition: 'height 0.04s ease-out'
           }} 
         />
@@ -42,11 +43,12 @@ function ControlTray() {
   const { template } = useTools();
 
   // Mode-based Mute logic
+  // In Translate mode, we usually want to start muted or handle it carefully to avoid echo loops
   useEffect(() => {
     if (appMode === 'translate') {
-      setMuted(true); // Default to muted in Translate mode to avoid mic echoing back AI
+      setMuted(true); 
     } else {
-      setMuted(false); // Default to listening in Transcribe mode
+      setMuted(false); 
     }
   }, [appMode]);
 
@@ -119,6 +121,18 @@ function ControlTray() {
     return muted || !connected ? 'mic_off' : 'mic';
   };
 
+  // Only show Speaker Visualizer when:
+  // 1. In Translate mode
+  // 2. AI is actually speaking (isAiSpeaking)
+  // 3. System is connected
+  const showSpeakerViz = connected && isAiSpeaking && appMode === 'translate';
+
+  // Only show Mic Visualizer when:
+  // 1. In Transcribe mode
+  // 2. Mic is NOT muted
+  // 3. System is connected
+  const showMicViz = connected && !muted && appMode === 'transcribe';
+
   return (
     <section className="control-tray-floating">
       <div className="control-tray-content">
@@ -149,12 +163,19 @@ function ControlTray() {
             </span>
           </button>
 
-          <button className={cn('icon-button relative-btn', { active: !muted && connected, muted: muted && connected })} onClick={handleMicClick}>
-            {/* INPUT VIZ: Only for Transcribe Mode + Mic Active */}
-            <MiniVisualizer volume={inputVolume} active={connected && !muted && appMode === 'transcribe'} color="success" />
+          <button 
+            className={cn('icon-button relative-btn', { 
+              active: !muted && connected, 
+              muted: muted && connected,
+              'speaking-pulse': showSpeakerViz 
+            })} 
+            onClick={handleMicClick}
+          >
+            {/* INPUT VIZ: Mic activity in Transcribe mode */}
+            <MiniVisualizer volume={inputVolume} active={showMicViz} color="success" />
             
-            {/* OUTPUT VIZ: Only for Translate Mode + AI Speaking */}
-            <MiniVisualizer volume={outputVolume} active={connected && isAiSpeaking && appMode === 'translate'} color="accent" />
+            {/* OUTPUT VIZ: Speaker activity in Translate mode */}
+            <MiniVisualizer volume={outputVolume} active={showSpeakerViz} color="accent" />
             
             <span className={cn('material-symbols-outlined', { 'filled': !muted && connected })}>
               {getToggleIcon()}

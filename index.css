@@ -191,6 +191,7 @@ header.header-glass {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .box-header .header-group {
@@ -215,6 +216,9 @@ header.header-glass {
 .box-content {
   padding: 24px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flex child scrolling */
 }
 
 /* Badges */
@@ -330,6 +334,15 @@ header.header-glass {
   position: relative;
 }
 
+.speaking-pulse {
+  animation: miniPulse 2s infinite ease-in-out;
+}
+
+@keyframes miniPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
 .mini-viz {
   position: absolute;
   inset: 0;
@@ -414,18 +427,22 @@ header.header-glass {
 /* History Box */
 .history-box {
   flex: 1;
+  min-height: 0; /* Critical for inner scrolling */
 }
 
 .archive-scroll {
   overflow-y: auto;
-  padding: 24px;
-  mask-image: linear-gradient(to bottom, transparent, black 5%, black 95%, transparent);
+  padding: 12px 24px 24px 24px;
+  scroll-behavior: smooth;
+  height: 100%;
+  /* Removed mask-image to prevent scrollbar visual artifacts */
 }
 
 .archive-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 100%;
 }
 
 .archive-empty {
@@ -433,6 +450,7 @@ header.header-glass {
   color: var(--text-muted);
   font-style: italic;
   padding: 40px 0;
+  margin: auto;
 }
 
 .archive-turn {
