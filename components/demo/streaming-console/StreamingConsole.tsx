@@ -249,19 +249,24 @@ export default function StreamingConsole() {
     };
 
     const handleInputTranscription = (text: string) => {
-      // IMPLEMENT SEGMENTED RENDERING:
-      // Show text in chunks.
+      // INSTANT SEGMENTED RENDERING:
+      // Update state immediately to reflect live speech chunks.
       setTranscriptionSegments(prev => {
         const last = prev[prev.length - 1];
+        // If the new text is a continuation of the last segment, replace it
         if (last && text.startsWith(last)) {
           const newArr = [...prev];
           newArr[newArr.length - 1] = text;
           return newArr;
         }
-        return [...prev, text].slice(-3); // Keep last 3 segments for live stage feel
+        // Otherwise append as a new block (keep last 4 for live stage view)
+        return [...prev, text].slice(-4); 
       });
+      
+      // Update the persistent ref for turn shipping
       lastUserTextRef.current = text;
       
+      // Clear live stage after prolonged silence (safety timeout)
       if (clearTimeoutsRef.current.input) window.clearTimeout(clearTimeoutsRef.current.input);
       clearTimeoutsRef.current.input = window.setTimeout(() => {
         setTranscriptionSegments([]);
@@ -283,6 +288,15 @@ export default function StreamingConsole() {
       const currentTurns = useLogStore.getState().turns;
       const last = currentTurns[currentTurns.length - 1];
       
+      // SHIP TO HISTORY LOGIC:
+      // In transcribe mode, we finalize the user's speech into the scrollable history.
+      if (appMode === 'transcribe' && lastUserTextRef.current) {
+        addTurn({ role: 'user', text: lastUserTextRef.current, isFinal: true });
+        // Clear live stage segments since it's now in history
+        setTranscriptionSegments([]);
+      }
+      
+      // Standard Agent shipping
       if (last && last.role === 'agent') {
         if (supabaseEnabled && lastUserTextRef.current) {
           logToSupabase({
@@ -291,7 +305,6 @@ export default function StreamingConsole() {
             agent_text: last.text,
             language: template
           });
-          lastUserTextRef.current = null;
         }
 
         if (currentAudioChunks.current.length > 0) {
@@ -308,6 +321,9 @@ export default function StreamingConsole() {
           updateLastTurn({ isFinal: true });
         }
       }
+      
+      // Clear temp storage
+      if (appMode === 'transcribe') lastUserTextRef.current = null;
     };
 
     const onAudio = (data: ArrayBuffer) => {
@@ -329,7 +345,7 @@ export default function StreamingConsole() {
       client.off('turncomplete', handleTurnComplete);
       client.off('audio', onAudio);
     };
-  }, [client, sessionId, supabaseEnabled, template, addTurn, updateLastTurn, translation]);
+  }, [client, sessionId, supabaseEnabled, template, addTurn, updateLastTurn, translation, appMode]);
 
   const lastAgentTurn = [...turns].reverse().find(t => t.role === 'agent' && t.audioData);
 
@@ -339,6 +355,7 @@ export default function StreamingConsole() {
 
   return (
     <div className="streaming-console-v3">
+      {/* BOX 1: LIVE STAGE (Neural Transcription Stage) */}
       <section className="console-box live-stage-box">
         <header className="box-header">
           <div className="header-group">
@@ -370,9 +387,11 @@ export default function StreamingConsole() {
           </div>
 
           <div className="live-text-area">
+             {/* Secondary Context (muted) */}
              <div className={cn("live-transcription", { visible: !!secondaryDisplayText })}>
                 {secondaryDisplayText}
              </div>
+             {/* Primary Instant/Segmented Result */}
              <div className={cn("live-result", { 
                 visible: !!primaryDisplayText || connected, 
                 "transcribe-mode": appMode === 'transcribe' 
@@ -384,6 +403,7 @@ export default function StreamingConsole() {
           <div className="live-meta-controls">
             {connected && (
               <div className="meta-pills">
+                {/* DYNAMIC LANGUAGE DISPLAY */}
                 <div className={cn("meta-pill", { active: !!detectedLanguage })}>
                   <span className="material-symbols-outlined">{detectedLanguage ? 'language' : 'sync'}</span>
                   <span>{detectedLanguage || 'Detecting Language...'}</span>
@@ -399,11 +419,13 @@ export default function StreamingConsole() {
                 </button>
               </div>
             )}
+            {/* Playback Controls (Suppressed in silent transcribe mode) */}
             {lastAgentTurn?.audioData && appMode !== 'transcribe' && <PlaybackControls audioData={lastAgentTurn.audioData} />}
           </div>
         </div>
       </section>
 
+      {/* BOX 2: SESSION HISTORY (Scrollable Permanent Archive) */}
       <section className="console-box history-box">
         <header className="box-header">
           <div className="header-group">
@@ -424,6 +446,9 @@ export default function StreamingConsole() {
                     <span className="turn-time">{turn.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                   </div>
                   <div className="turn-content">{turn.text}</div>
+                  {turn.role === 'agent' && turn.audioData && appMode !== 'transcribe' && (
+                    <PlaybackControls audioData={turn.audioData} />
+                  )}
                 </div>
               ))
             )}

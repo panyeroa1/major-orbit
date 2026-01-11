@@ -57,10 +57,17 @@ export class GenAILiveClient {
             if (message.serverContent) {
               this.emitter.emit('content', message.serverContent);
               
-              const base64EncodedAudioString = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-              if (base64EncodedAudioString) {
-                const audioBytes = decode(base64EncodedAudioString);
-                this.emitter.emit('audio', audioBytes.buffer);
+              const modelTurn = message.serverContent?.modelTurn;
+              if (modelTurn?.parts) {
+                for (const part of modelTurn.parts) {
+                  if (part.inlineData?.data) {
+                    const audioBytes = decode(part.inlineData.data);
+                    this.emitter.emit('audio', audioBytes.buffer);
+                  }
+                  if (part.text) {
+                    this.emitter.emit('text', part.text);
+                  }
+                }
               }
 
               if (message.serverContent.inputTranscription) {

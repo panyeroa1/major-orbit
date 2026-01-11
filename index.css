@@ -217,6 +217,43 @@ header.header-glass {
   flex: 1;
 }
 
+/* Badges */
+.header-status-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.silent-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.remote-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 @media (max-width: 600px) {
   .box-content {
     padding: 16px;
@@ -305,9 +342,18 @@ header.header-glass {
   line-height: 1.3;
 }
 
+.live-result.transcribe-mode {
+  font-size: 1.8rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
 @media (max-width: 600px) {
   .live-result {
     font-size: 1.3rem;
+  }
+  .live-result.transcribe-mode {
+    font-size: 1.4rem;
   }
 }
 
@@ -374,6 +420,61 @@ header.header-glass {
   font-size: 1rem;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* Meta Pills */
+.live-meta-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.meta-pills {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.meta-pill, .meta-pill-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.meta-pill.active {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.meta-pill-toggle {
+  cursor: pointer;
+  border: none;
+}
+
+.meta-pill-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.meta-pill-toggle.active {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.meta-pill span.material-symbols-outlined {
+  font-size: 16px;
 }
 
 /* Sidebar Styles */

@@ -1,29 +1,27 @@
 # DEV SESSION LOG
 
-## Session ID: 20250523-112000
-**Start Timestamp**: 2025-05-23 11:20:00
+## Session ID: 20250523-134500
+**Start Timestamp**: 2025-05-23 13:45:00
 
 ### Objective(s)
-1. Prevent auto-start on page load.
-2. Enhance transcription and translation prompts for "top-notch" scalability.
-3. Integrate "EBURON.AI" whitelisting into neural directives.
-4. Optimize WebSocket broadcast tool for multi-user synchronization (Zoom-style).
-5. DYNAMIC LANGUAGE UI: Display detected language prominently in the StreamingConsole.
-6. **SILENT SCRIBE**: Turn off read-aloud functionality when in transcription mode.
-7. **SEGMENTED LIVE STAGE**: Render transcription in a focused, segmented streaming format.
+1. Fix "Internal error occurred" by simplifying modality-instruction synergy.
+2. **LIVE SEGMENTED RENDERING**: Transcription text appears instantly in segments.
+3. **HISTORY SHIPPING**: Automatically move live transcription to Session History upon turn completion.
+4. **SILENT SCRIBE**: Ensure absolute silence in transcription mode via hook-level suppression.
 
 ### Scope Boundaries
-- Audio suppression logic localized to the Live API hook.
-- UI changes focused on the StreamingConsole component.
+- Focus on `StreamingConsole.tsx` for state management of live vs historical text.
+- Update `state.ts` for prompt robustness.
+- Ensure tool calls for `broadcast_to_websocket` are triggered.
 
 ### Files Inspected
-- `App.tsx`
-- `lib/state.ts`
 - `components/demo/streaming-console/StreamingConsole.tsx`
+- `lib/state.ts`
 - `hooks/media/use-live-api.ts`
 
 ### Assumptions / Risks
-- Risk: Suppressing audio in the hook is safer than relying solely on the LLM's "silence" instruction, as the Gemini Live API mandates the AUDIO modality.
+- Assumption: `turnComplete` is the reliable trigger for "shipping" user transcription to history.
+- Risk: In high-latency scenarios, segments might arrive out of order (mitigated by starting-with check).
 
 ---
 **Status**: IN_PROGRESS
