@@ -322,6 +322,12 @@ export default function StreamingConsole() {
 
   const lastAgentTurn = [...turns].reverse().find(t => t.role === 'agent' && t.audioData);
 
+  // PRIMARY DISPLAY SELECTION
+  // If in Transcribe mode, we prioritize the transcription text.
+  // In Translate mode, we prioritize the translation.
+  const primaryDisplayText = appMode === 'transcribe' ? transcription : translation;
+  const secondaryDisplayText = appMode === 'transcribe' ? translation : transcription;
+
   return (
     <div className="streaming-console-v3">
       {/* BOX 1: LIVE STAGE (Streaming Active Segments) */}
@@ -329,14 +335,22 @@ export default function StreamingConsole() {
         <header className="box-header">
           <div className="header-group">
             <span className="material-symbols-outlined box-icon">stream</span>
-            <h3>Live Stage</h3>
+            <h3>{appMode === 'transcribe' ? 'Neural Transcription' : 'Live Stage'}</h3>
           </div>
-          {isRemoteInput && (
-            <div className="remote-badge">
-              <span className="material-symbols-outlined">hub</span>
-              <span>Remote Bridge</span>
-            </div>
-          )}
+          <div className="header-status-group">
+            {appMode === 'transcribe' && (
+              <div className="silent-badge">
+                <span className="material-symbols-outlined">volume_off</span>
+                <span>Silent Mode</span>
+              </div>
+            )}
+            {isRemoteInput && (
+              <div className="remote-badge">
+                <span className="material-symbols-outlined">hub</span>
+                <span>Remote Bridge</span>
+              </div>
+            )}
+          </div>
         </header>
         
         <div className="box-content live-content-wrapper">
@@ -348,11 +362,16 @@ export default function StreamingConsole() {
           </div>
 
           <div className="live-text-area">
-             <div className={cn("live-transcription", { visible: !!transcription })}>
-                {transcription}
+             {/* Secondary Text (Small/Muted) */}
+             <div className={cn("live-transcription", { visible: !!secondaryDisplayText })}>
+                {secondaryDisplayText}
              </div>
-             <div className={cn("live-result", { visible: !!translation || connected })}>
-                {translation || (connected ? (transcription ? "" : "Neural engine ready...") : "System standby")}
+             {/* Primary Text (Large/Clear) */}
+             <div className={cn("live-result", { 
+                visible: !!primaryDisplayText || connected, 
+                "transcribe-mode": appMode === 'transcribe' 
+             })}>
+                {primaryDisplayText || (connected ? (secondaryDisplayText ? "" : "Neural engine ready...") : "System standby")}
              </div>
           </div>
 
@@ -375,7 +394,8 @@ export default function StreamingConsole() {
                 </button>
               </div>
             )}
-            {lastAgentTurn?.audioData && <PlaybackControls audioData={lastAgentTurn.audioData} />}
+            {/* Playback only available if NOT in transcribe mode OR if we specifically want to hear history */}
+            {lastAgentTurn?.audioData && appMode !== 'transcribe' && <PlaybackControls audioData={lastAgentTurn.audioData} />}
           </div>
         </div>
       </section>

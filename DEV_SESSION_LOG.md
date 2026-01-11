@@ -8,21 +8,22 @@
 2. Enhance transcription and translation prompts for "top-notch" scalability.
 3. Integrate "EBURON.AI" whitelisting into neural directives.
 4. Optimize WebSocket broadcast tool for multi-user synchronization (Zoom-style).
-5. **DYNAMIC LANGUAGE UI**: Display detected language prominently in the StreamingConsole.
+5. DYNAMIC LANGUAGE UI: Display detected language prominently in the StreamingConsole.
+6. **SILENT SCRIBE**: Turn off read-aloud functionality when in transcription mode.
+7. **SEGMENTED LIVE STAGE**: Render transcription in a focused, segmented streaming format.
 
 ### Scope Boundaries
-- Focusing on the "Listener/Speaker" dynamic.
-- Ensuring the broadcast tool is invoked for every "chunk".
+- Audio suppression logic localized to the Live API hook.
+- UI changes focused on the StreamingConsole component.
 
 ### Files Inspected
 - `App.tsx`
 - `lib/state.ts`
 - `components/demo/streaming-console/StreamingConsole.tsx`
-- `lib/tools.ts`
+- `hooks/media/use-live-api.ts`
 
 ### Assumptions / Risks
-- Assumption: "Scalability" in this context refers to the UI's ability to sync across multiple clients via the WebSocket service.
-- Risk: Increased tool calls might introduce slight overhead, but essential for multi-user sync.
+- Risk: Suppressing audio in the hook is safer than relying solely on the LLM's "silence" instruction, as the Gemini Live API mandates the AUDIO modality.
 
 ---
 **Status**: IN_PROGRESS

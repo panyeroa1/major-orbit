@@ -123,7 +123,11 @@ export function useLiveApi({
     const stopAudioStreamer = () => {};
 
     const onAudio = (data: ArrayBuffer) => {
-      // PLAY AUDIO: Enabled for both Translate and Transcribe modes to support "read aloud" sync.
+      // READ-ALOUD SUPPRESSION: Turn off audio playback when in transcription mode
+      if (appMode === 'transcribe') {
+        return; 
+      }
+
       if (audioStreamerRef.current) {
         audioStreamerRef.current.addPCM16(new Uint8Array(data));
       }
@@ -175,7 +179,7 @@ export function useLiveApi({
       client.off('audio', onAudio);
       client.off('toolcall', onToolCall);
     };
-  }, [client]);
+  }, [client, appMode]); // Added appMode to dependencies
 
   const connect = useCallback(async () => {
     if (connected) return;
