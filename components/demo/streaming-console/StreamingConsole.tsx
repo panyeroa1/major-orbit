@@ -135,7 +135,7 @@ export default function StreamingConsole() {
   const { tools, template } = useTools();
   const { turns, sessionId, addTurn, updateLastTurn } = useLogStore();
   
-  const [transcription, setTranscription] = useState<string | null>(null);
+  const [transcriptionSegments, setTranscriptionSegments] = useState<string[]>([]);
   const [translation, setTranslation] = useState<string | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [isRemoteInput, setIsRemoteInput] = useState(false);
@@ -169,7 +169,10 @@ export default function StreamingConsole() {
   }, [turns]);
 
   useEffect(() => {
-    if (!connected) setDetectedLanguage(null);
+    if (!connected) {
+      setDetectedLanguage(null);
+      setTranscriptionSegments([]);
+    }
   }, [connected]);
 
   useEffect(() => {
@@ -236,10 +239,8 @@ export default function StreamingConsole() {
 
     const handleOutputTranscription = (text: string) => {
       setTranslation(prev => (prev || '') + text);
-      
       const currentTurns = useLogStore.getState().turns;
       const last = currentTurns[currentTurns.length - 1];
-      
       if (last && last.role === 'agent' && !last.isFinal) {
         updateLastTurn({ text: last.text + text });
       } else {
@@ -248,12 +249,22 @@ export default function StreamingConsole() {
     };
 
     const handleInputTranscription = (text: string) => {
-      setTranscription(text);
+      // IMPLEMENT SEGMENTED RENDERING:
+      // Show text in chunks.
+      setTranscriptionSegments(prev => {
+        const last = prev[prev.length - 1];
+        if (last && text.startsWith(last)) {
+          const newArr = [...prev];
+          newArr[newArr.length - 1] = text;
+          return newArr;
+        }
+        return [...prev, text].slice(-3); // Keep last 3 segments for live stage feel
+      });
       lastUserTextRef.current = text;
       
       if (clearTimeoutsRef.current.input) window.clearTimeout(clearTimeoutsRef.current.input);
       clearTimeoutsRef.current.input = window.setTimeout(() => {
-        setTranscription(null);
+        setTranscriptionSegments([]);
       }, 6000);
     };
 
@@ -322,15 +333,12 @@ export default function StreamingConsole() {
 
   const lastAgentTurn = [...turns].reverse().find(t => t.role === 'agent' && t.audioData);
 
-  // PRIMARY DISPLAY SELECTION
-  // If in Transcribe mode, we prioritize the transcription text.
-  // In Translate mode, we prioritize the translation.
-  const primaryDisplayText = appMode === 'transcribe' ? transcription : translation;
-  const secondaryDisplayText = appMode === 'transcribe' ? translation : transcription;
+  const transcriptionText = transcriptionSegments.join(' ');
+  const primaryDisplayText = appMode === 'transcribe' ? transcriptionText : translation;
+  const secondaryDisplayText = appMode === 'transcribe' ? translation : transcriptionText;
 
   return (
     <div className="streaming-console-v3">
-      {/* BOX 1: LIVE STAGE (Streaming Active Segments) */}
       <section className="console-box live-stage-box">
         <header className="box-header">
           <div className="header-group">
@@ -362,11 +370,9 @@ export default function StreamingConsole() {
           </div>
 
           <div className="live-text-area">
-             {/* Secondary Text (Small/Muted) */}
              <div className={cn("live-transcription", { visible: !!secondaryDisplayText })}>
                 {secondaryDisplayText}
              </div>
-             {/* Primary Text (Large/Clear) */}
              <div className={cn("live-result", { 
                 visible: !!primaryDisplayText || connected, 
                 "transcribe-mode": appMode === 'transcribe' 
@@ -378,7 +384,6 @@ export default function StreamingConsole() {
           <div className="live-meta-controls">
             {connected && (
               <div className="meta-pills">
-                {/* DYNAMIC LANGUAGE DISPLAY */}
                 <div className={cn("meta-pill", { active: !!detectedLanguage })}>
                   <span className="material-symbols-outlined">{detectedLanguage ? 'language' : 'sync'}</span>
                   <span>{detectedLanguage || 'Detecting Language...'}</span>
@@ -394,13 +399,11 @@ export default function StreamingConsole() {
                 </button>
               </div>
             )}
-            {/* Playback only available if NOT in transcribe mode OR if we specifically want to hear history */}
             {lastAgentTurn?.audioData && appMode !== 'transcribe' && <PlaybackControls audioData={lastAgentTurn.audioData} />}
           </div>
         </div>
       </section>
 
-      {/* BOX 2: HISTORY ARCHIVE (Full Transcription) */}
       <section className="console-box history-box">
         <header className="box-header">
           <div className="header-group">
