@@ -57,11 +57,11 @@ export class AudioRecorder {
   private noiseFloor: number = 0.005;
   private isSpeaking: boolean = false;
   private silenceFrames: number = 0;
-  private calibrationFrames: number = 20; // Initial noise calibration period (~500ms)
+  private calibrationFrames: number = 30; // ~750ms calibration
   
   // Rolling volume average for stability
   private volumeHistory: number[] = [];
-  private readonly HISTORY_SIZE = 8;
+  private readonly HISTORY_SIZE = 12;
 
   // Ducking Logic Variables
   private volumeMultiplier: number = 1.0; 
@@ -86,21 +86,22 @@ export class AudioRecorder {
 
     // 2. Initial Calibration Phase
     if (this.calibrationFrames > 0) {
-      // Establish baseline noise floor
-      this.noiseFloor = (this.noiseFloor * 0.8) + (smoothVolume * 0.2);
+      // Establish baseline noise floor aggressively during start
+      this.noiseFloor = (this.noiseFloor * 0.7) + (smoothVolume * 0.3);
       this.calibrationFrames--;
       return;
     }
 
     // 3. Adaptive Noise Floor Tracking
-    const isBackground = smoothVolume < (this.noiseFloor * 1.5);
-    const noiseAlpha = isBackground ? 0.05 : 0.001; 
-    this.noiseFloor = this.noiseFloor * (1 - noiseAlpha) + Math.max(0.001, smoothVolume) * noiseAlpha;
+    // Use an asymmetric filter: noise floor drifts up slowly but down even more slowly
+    const isBackground = smoothVolume < (this.noiseFloor * 1.8);
+    const noiseAlpha = isBackground ? 0.02 : 0.0005; 
+    this.noiseFloor = this.noiseFloor * (1 - noiseAlpha) + Math.max(0.0005, smoothVolume) * noiseAlpha;
 
-    // 4. Dynamic SNR-Based Thresholding
-    const noiseFactor = Math.min(2.5, Math.max(1.0, this.noiseFloor * 150));
-    const START_THRESHOLD = this.noiseFloor * (2.8 * noiseFactor) + 0.01; 
-    const STOP_THRESHOLD = this.noiseFloor * (1.4 * noiseFactor) + 0.005;
+    // 4. Dynamic Thresholding (Adaptive Schmidt Trigger)
+    const dynamicHeadroom = 1.5 + (this.noiseFloor * 20); // More headroom in noisy environments
+    const START_THRESHOLD = this.noiseFloor * (2.5 * dynamicHeadroom) + 0.008; 
+    const STOP_THRESHOLD = this.noiseFloor * (1.2 * dynamicHeadroom) + 0.004;
     
     // 5. VAD State Machine
     if (!this.isSpeaking && smoothVolume > START_THRESHOLD) {
@@ -109,7 +110,7 @@ export class AudioRecorder {
     } else if (this.isSpeaking) {
       if (smoothVolume < STOP_THRESHOLD) {
         this.silenceFrames++;
-        if (this.silenceFrames > 25) { 
+        if (this.silenceFrames > 40) { // ~1 second of silence to end turn
           this.isSpeaking = false;
         }
       } else {
@@ -117,26 +118,26 @@ export class AudioRecorder {
       }
     }
 
-    // 6. Proportional Gain Control
-    const TARGET_LEVEL = 0.45;
-    const MAX_BOOST = 12.0; 
+    // 6. Proportional Automatic Gain Control (AGC)
+    const TARGET_LEVEL = 0.5;
+    const MAX_BOOST = 15.0; 
     
     if (this.isSpeaking) {
-      const neededBoost = TARGET_LEVEL / Math.max(0.005, smoothVolume);
-      this.targetGain = Math.min(MAX_BOOST, neededBoost);
+      // Target a specific RMS level
+      const neededBoost = TARGET_LEVEL / Math.max(0.001, smoothVolume);
+      this.targetGain = Math.min(MAX_BOOST, Math.max(0.5, neededBoost));
     } else {
-      this.targetGain = 0.01; 
+      // Lower gain during silence to reduce background noise amplification
+      this.targetGain = 0.05; 
     }
 
     // 7. Non-Linear Gain Smoothing
-    const gainAlpha = this.targetGain > this.currentGain ? 0.45 : 0.12;
+    const gainAlpha = this.targetGain > this.currentGain ? 0.35 : 0.08;
     this.currentGain = this.currentGain * (1 - gainAlpha) + this.targetGain * gainAlpha;
     
-    // 8. Refined Asymmetric Ducking Logic
-    // Ducking needs to be fast (attack) to prevent feedback loops, 
-    // but restoration should be subtle and smooth (release).
+    // 8. Refined Asymmetric Ducking
     const isDucking = this.targetVolumeMultiplier < this.volumeMultiplier;
-    const duckingAlpha = isDucking ? 0.35 : 0.06; // Faster attack (0.35), slower release (0.06)
+    const duckingAlpha = isDucking ? 0.5 : 0.04; // Instant ducking, slow recovery
     this.volumeMultiplier = this.volumeMultiplier * (1 - duckingAlpha) + this.targetVolumeMultiplier * duckingAlpha;
 
     const finalGain = this.currentGain * this.volumeMultiplier;
@@ -197,7 +198,7 @@ export class AudioRecorder {
 
         this.source.connect(this.vuWorklet);
         this.recording = true;
-        this.calibrationFrames = 20; 
+        this.calibrationFrames = 30; 
         resolve();
         this.starting = null;
       } catch (err) {

@@ -16,7 +16,7 @@ function ControlTray() {
   const [chatValue, setChatValue] = useState('');
   const connectButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { client, connected, connect, disconnect, isAiSpeaking } = useLiveAPIContext();
+  const { client, connected, connect, disconnect, isAiSpeaking, setInputVolume } = useLiveAPIContext();
   const { toggleSidebar, isSidebarOpen } = useUI();
   const { voiceFocus, setVoiceFocus, appMode } = useSettings();
   const { template } = useTools();
@@ -32,18 +32,18 @@ function ControlTray() {
 
   useEffect(() => {
     if (!connected) {
-      // In Translate mode, we want to start muted. In Transcribe, we start unmuted.
       setMuted(appMode === 'translate');
     }
   }, [connected, appMode]);
 
-  // Handle Ducking: reduce mic input level to 15% when AI is speaking with smooth transitions
+  // Handle Ducking
   useEffect(() => {
     if (audioRecorder && connected && !muted) {
       audioRecorder.setVolumeMultiplier(isAiSpeaking ? 0.15 : 1.0);
     }
   }, [isAiSpeaking, audioRecorder, connected, muted]);
 
+  // Audio Data and Volume Bridging
   useEffect(() => {
     const onData = (base64: string) => {
       client.sendRealtimeInput([
@@ -53,16 +53,28 @@ function ControlTray() {
         },
       ]);
     };
+
+    const onVolume = (v: number) => {
+      if (connected && !muted) {
+        setInputVolume(v);
+      } else {
+        setInputVolume(0);
+      }
+    };
+
     if (connected && !muted && audioRecorder) {
       audioRecorder.on('data', onData);
+      audioRecorder.on('volume', onVolume);
       audioRecorder.start();
     } else {
       audioRecorder.stop();
+      setInputVolume(0);
     }
     return () => {
       audioRecorder.off('data', onData);
+      audioRecorder.off('volume', onVolume);
     };
-  }, [connected, client, muted, audioRecorder]);
+  }, [connected, client, muted, audioRecorder, setInputVolume]);
 
   const handleMicClick = () => {
     if (connected) {
@@ -95,7 +107,6 @@ function ControlTray() {
     ? (appMode === 'transcribe' ? 'Type a note...' : 'Type to translate...') 
     : 'Connect to start...';
 
-  // Determine which icon to use for the mic/speaker button
   const getToggleIcon = () => {
     if (appMode === 'translate') {
       return muted || !connected ? 'volume_off' : 'volume_up';
@@ -106,7 +117,6 @@ function ControlTray() {
   return (
     <section className="control-tray-floating">
       <div className="control-tray-content">
-        {/* Only show the text input composer if NOT in transcribe mode */}
         {appMode !== 'transcribe' && (
           <div className="chat-composer-floating">
             <input

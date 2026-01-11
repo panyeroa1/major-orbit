@@ -20,7 +20,10 @@ export type UseLiveApiResults = {
   disconnect: () => void;
   connected: boolean;
   isAiSpeaking: boolean;
-  volume: number;
+  volume: number; // For backward compatibility if needed, but we'll use specific ones below
+  outputVolume: number;
+  inputVolume: number;
+  setInputVolume: (v: number) => void;
 };
 
 export function useLiveApi({
@@ -41,7 +44,8 @@ export function useLiveApi({
     appModeRef.current = appMode;
   }, [appMode]);
 
-  const [volume, setVolume] = useState(0);
+  const [outputVolume, setOutputVolume] = useState(0);
+  const [inputVolume, setInputVolume] = useState(0);
   const [connected, setConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [config, setConfig] = useState<LiveConnectConfig>({
@@ -57,7 +61,7 @@ export function useLiveApi({
         streamer.onStop = () => setIsAiSpeaking(false);
 
         streamer.addWorklet<any>('vumeter-out', VolMeterWorket, (ev: any) => {
-          setVolume(ev.data.volume);
+          setOutputVolume(ev.data.volume);
         }).catch(console.error);
       });
     }
@@ -65,11 +69,18 @@ export function useLiveApi({
 
   useEffect(() => {
     const onOpen = () => setConnected(true);
-    const onClose = () => setConnected(false);
-    const onError = () => setConnected(false);
+    const onClose = () => {
+      setConnected(false);
+      setInputVolume(0);
+      setOutputVolume(0);
+    };
+    const onError = () => {
+      setConnected(false);
+      setInputVolume(0);
+      setOutputVolume(0);
+    };
     
     const onAudio = (data: ArrayBuffer) => {
-      // Logic for "TURN OF READ aloud in the transcription"
       if (appModeRef.current === 'transcribe') return;
       if (audioStreamerRef.current) {
         audioStreamerRef.current.addPCM16(new Uint8Array(data));
@@ -113,7 +124,21 @@ export function useLiveApi({
   const disconnect = useCallback(() => {
     client.disconnect();
     setConnected(false);
+    setInputVolume(0);
+    setOutputVolume(0);
   }, [client]);
 
-  return { client, config, setConfig, connect, connected, disconnect, isAiSpeaking, volume };
+  return { 
+    client, 
+    config, 
+    setConfig, 
+    connect, 
+    connected, 
+    disconnect, 
+    isAiSpeaking, 
+    volume: outputVolume, // compat
+    outputVolume, 
+    inputVolume,
+    setInputVolume
+  };
 }

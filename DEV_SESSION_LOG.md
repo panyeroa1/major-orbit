@@ -1,27 +1,27 @@
 # DEV SESSION LOG
 
-## Session ID: 20250523-134500
-**Start Timestamp**: 2025-05-23 13:45:00
+## Session ID: 20250523-143000
+**Start Timestamp**: 2025-05-23 14:30:00
 
 ### Objective(s)
-1. Fix "Internal error occurred" by simplifying modality-instruction synergy.
-2. **LIVE SEGMENTED RENDERING**: Transcription text appears instantly in segments.
-3. **HISTORY SHIPPING**: Automatically move live transcription to Session History upon turn completion.
-4. **SILENT SCRIBE**: Ensure absolute silence in transcription mode via hook-level suppression.
+1. Implement real-time audio visualizers for Mic (Transcription) and Speaker (Translation).
+2. Bridge volume data from `AudioRecorder` (mic) and `AudioStreamer` (speaker) to the UI.
+3. Maintain high performance for segmented live rendering.
 
 ### Scope Boundaries
-- Focus on `StreamingConsole.tsx` for state management of live vs historical text.
-- Update `state.ts` for prompt robustness.
-- Ensure tool calls for `broadcast_to_websocket` are triggered.
+- `useLiveApi.ts` for volume state management.
+- `ControlTray.tsx` for mic volume bridging.
+- `StreamingConsole.tsx` for visualizer UI.
 
 ### Files Inspected
-- `components/demo/streaming-console/StreamingConsole.tsx`
-- `lib/state.ts`
 - `hooks/media/use-live-api.ts`
+- `components/console/control-tray/ControlTray.tsx`
+- `components/demo/streaming-console/StreamingConsole.tsx`
+- `index.css`
 
 ### Assumptions / Risks
-- Assumption: `turnComplete` is the reliable trigger for "shipping" user transcription to history.
-- Risk: In high-latency scenarios, segments might arrive out of order (mitigated by starting-with check).
+- Assumption: The `volume` event from `AudioRecorder` provides enough resolution for a smooth visualizer.
+- Risk: High-frequency state updates for volume might impact React render performance if not handled carefully (memoization).
 
 ---
 **Status**: IN_PROGRESS

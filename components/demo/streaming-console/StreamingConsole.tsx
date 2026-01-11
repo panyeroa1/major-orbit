@@ -16,6 +16,31 @@ import {
   useTools,
 } from '../../../lib/state';
 
+const AudioVisualizer = memo(({ volume, isAi, connected }: { volume: number; isAi: boolean; connected: boolean }) => {
+  const bars = 16;
+  // Use local state for bars to ensure high-performance animation if needed, 
+  // but volume prop is already optimized.
+  return (
+    <div className={cn("audio-visualizer", { active: connected && volume > 0.001, ai: isAi })}>
+      {Array.from({ length: bars }).map((_, i) => {
+        // Create varied heights for a more natural look
+        const factor = Math.sin((i / bars) * Math.PI) * 0.7 + 0.3;
+        const height = connected ? Math.max(4, volume * 100 * factor) : 4;
+        return (
+          <div 
+            key={i} 
+            className="viz-bar" 
+            style={{ 
+              height: `${height}px`,
+              transition: 'height 0.1s ease-out'
+            }} 
+          />
+        );
+      })}
+    </div>
+  );
+});
+
 const PlaybackControls = memo(({ audioData }: { audioData: Uint8Array }) => {
   const [status, setStatus] = useState<'playing' | 'paused' | 'stopped'>('stopped');
   const [progress, setProgress] = useState(0);
@@ -130,7 +155,7 @@ const PlaybackControls = memo(({ audioData }: { audioData: Uint8Array }) => {
 });
 
 export default function StreamingConsole() {
-  const { client, setConfig, connected, connect, isAiSpeaking } = useLiveAPIContext();
+  const { client, setConfig, connected, connect, isAiSpeaking, inputVolume, outputVolume } = useLiveAPIContext();
   const { systemPrompt, voice, supabaseEnabled, appMode, voiceFocus, setVoiceFocus } = useSettings();
   const { tools, template } = useTools();
   const { turns, sessionId, addTurn, updateLastTurn } = useLogStore();
@@ -249,28 +274,24 @@ export default function StreamingConsole() {
     };
 
     const handleInputTranscription = (text: string) => {
-      // INSTANT SEGMENTED RENDERING:
-      // Update state immediately to reflect live speech chunks.
       setTranscriptionSegments(prev => {
         const last = prev[prev.length - 1];
-        // If the new text is a continuation of the last segment, replace it
         if (last && text.startsWith(last)) {
           const newArr = [...prev];
           newArr[newArr.length - 1] = text;
           return newArr;
         }
-        // Otherwise append as a new block (keep last 4 for live stage view)
         return [...prev, text].slice(-4); 
       });
       
-      // Update the persistent ref for turn shipping
       lastUserTextRef.current = text;
       
-      // Clear live stage after prolonged silence (safety timeout)
       if (clearTimeoutsRef.current.input) window.clearTimeout(clearTimeoutsRef.current.input);
       clearTimeoutsRef.current.input = window.setTimeout(() => {
-        setTranscriptionSegments([]);
-      }, 6000);
+        if (lastUserTextRef.current === text) {
+           setTranscriptionSegments([]);
+        }
+      }, 7000);
     };
 
     const handleToolCall = (toolCall: LiveServerToolCall) => {
@@ -285,23 +306,24 @@ export default function StreamingConsole() {
     };
 
     const handleTurnComplete = () => {
+      if (appMode === 'transcribe' && lastUserTextRef.current) {
+        addTurn({ 
+           role: 'user', 
+           text: lastUserTextRef.current, 
+           isFinal: true 
+        });
+        setTranscriptionSegments([]);
+        lastUserTextRef.current = null;
+      }
+      
       const currentTurns = useLogStore.getState().turns;
       const last = currentTurns[currentTurns.length - 1];
       
-      // SHIP TO HISTORY LOGIC:
-      // In transcribe mode, we finalize the user's speech into the scrollable history.
-      if (appMode === 'transcribe' && lastUserTextRef.current) {
-        addTurn({ role: 'user', text: lastUserTextRef.current, isFinal: true });
-        // Clear live stage segments since it's now in history
-        setTranscriptionSegments([]);
-      }
-      
-      // Standard Agent shipping
       if (last && last.role === 'agent') {
-        if (supabaseEnabled && lastUserTextRef.current) {
+        if (supabaseEnabled && last.text) {
           logToSupabase({
             session_id: sessionId,
-            user_text: lastUserTextRef.current,
+            user_text: "Neural Transcription Mode",
             agent_text: last.text,
             language: template
           });
@@ -322,7 +344,6 @@ export default function StreamingConsole() {
         }
       }
       
-      // Clear temp storage
       if (appMode === 'transcribe') lastUserTextRef.current = null;
     };
 
@@ -353,9 +374,12 @@ export default function StreamingConsole() {
   const primaryDisplayText = appMode === 'transcribe' ? transcriptionText : translation;
   const secondaryDisplayText = appMode === 'transcribe' ? translation : transcriptionText;
 
+  // Visualizer logic
+  const currentVolume = appMode === 'transcribe' ? inputVolume : outputVolume;
+  const isAiVisualizer = appMode === 'translate';
+
   return (
     <div className="streaming-console-v3">
-      {/* BOX 1: LIVE STAGE (Neural Transcription Stage) */}
       <section className="console-box live-stage-box">
         <header className="box-header">
           <div className="header-group">
@@ -381,17 +405,16 @@ export default function StreamingConsole() {
         <div className="box-content live-content-wrapper">
           <div className={`active-pulse-container ${isAiSpeaking ? 'ai-active' : connected ? 'listening' : ''}`}>
              <div className="pulse-aura" />
+             <AudioVisualizer volume={currentVolume} isAi={isAiVisualizer} connected={connected} />
              <span className="material-symbols-outlined live-icon">
                 {isAiSpeaking ? 'graphic_eq' : connected ? 'mic' : 'bolt'}
              </span>
           </div>
 
           <div className="live-text-area">
-             {/* Secondary Context (muted) */}
              <div className={cn("live-transcription", { visible: !!secondaryDisplayText })}>
                 {secondaryDisplayText}
              </div>
-             {/* Primary Instant/Segmented Result */}
              <div className={cn("live-result", { 
                 visible: !!primaryDisplayText || connected, 
                 "transcribe-mode": appMode === 'transcribe' 
@@ -403,7 +426,6 @@ export default function StreamingConsole() {
           <div className="live-meta-controls">
             {connected && (
               <div className="meta-pills">
-                {/* DYNAMIC LANGUAGE DISPLAY */}
                 <div className={cn("meta-pill", { active: !!detectedLanguage })}>
                   <span className="material-symbols-outlined">{detectedLanguage ? 'language' : 'sync'}</span>
                   <span>{detectedLanguage || 'Detecting Language...'}</span>
@@ -419,13 +441,11 @@ export default function StreamingConsole() {
                 </button>
               </div>
             )}
-            {/* Playback Controls (Suppressed in silent transcribe mode) */}
             {lastAgentTurn?.audioData && appMode !== 'transcribe' && <PlaybackControls audioData={lastAgentTurn.audioData} />}
           </div>
         </div>
       </section>
 
-      {/* BOX 2: SESSION HISTORY (Scrollable Permanent Archive) */}
       <section className="console-box history-box">
         <header className="box-header">
           <div className="header-group">

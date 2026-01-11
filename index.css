@@ -296,6 +296,35 @@ header.header-glass {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Audio Visualizer */
+.audio-visualizer {
+  position: absolute;
+  inset: -10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.audio-visualizer.active {
+  opacity: 1;
+}
+
+.viz-bar {
+  width: 4px;
+  background: var(--text-muted);
+  border-radius: 100px;
+  opacity: 0.4;
+}
+
+.audio-visualizer.ai .viz-bar {
+  background: var(--accent);
+  opacity: 0.8;
+}
+
 .active-pulse-container.ai-active {
   background: var(--accent-dim);
   border-color: var(--accent);
@@ -320,6 +349,7 @@ header.header-glass {
 .live-icon {
   font-size: 28px;
   color: var(--text-muted);
+  z-index: 2;
 }
 
 .ai-active .live-icon { color: var(--accent); }
